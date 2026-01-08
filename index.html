@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Site Audit Pro - Email Verification</title>
+      <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">
+      <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+              background: linear-gradient(145deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
+              padding: 20px;
+          }
+          .card {
+              background: white;
+              padding: 50px 40px;
+              border-radius: 20px;
+              text-align: center;
+              box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+              max-width: 440px;
+              width: 100%;
+          }
+          .icon {
+              width: 80px;
+              height: 80px;
+              margin: 0 auto 25px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 50%;
+          }
+          .icon-loading {
+              border: 4px solid #e8f5e9;
+              border-top: 4px solid #4CAF50;
+              animation: spin 1s linear infinite;
+          }
+          .icon-success { background: #e8f5e9; }
+          .icon-error { background: #ffebee; }
+          .icon svg { width: 40px; height: 40px; }
+          @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+          }
+          h1 {
+              font-size: 26px;
+              font-weight: 700;
+              margin-bottom: 12px;
+              color: #1a1a1a;
+          }
+          .success h1 { color: #2e7d32; }
+          .error h1 { color: #c62828; }
+          p {
+              color: #666;
+              line-height: 1.7;
+              font-size: 16px;
+          }
+          .app-name {
+              color: #4CAF50;
+              font-weight: 600;
+          }
+          .btn {
+              display: inline-block;
+              margin-top: 30px;
+              padding: 16px 36px;
+              background: linear-gradient(135deg, #4CAF50 0%, #43a047 100%);
+              color: white;
+              text-decoration: none;
+              border-radius: 12px;
+              font-weight: 600;
+              font-size: 16px;
+              transition: transform 0.2s, box-shadow 0.2s;
+              box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+          }
+          .btn:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+          }
+          .divider {
+              margin: 25px 0;
+              border-top: 1px solid #eee;
+          }
+          .hint {
+              font-size: 14px;
+              color: #999;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="card">
+          <!-- Loading State -->
+          <div id="loading">
+              <div class="icon icon-loading"></div>
+              <h1>Verifying Your Email</h1>
+              <p>Please wait a moment...</p>
+          </div>
+
+          <!-- Success State -->
+          <div id="success" class="success" style="display:none;">
+              <div class="icon icon-success">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+              </div>
+              <h1>Email Verified!</h1>
+              <p>Your email has been verified successfully.<br>You can now return to <span class="app-name">Site Audit Pro</span> and log in.</p>
+              <a href="siteaudit://verified" class="btn">Open Site Audit Pro</a>
+              <div class="divider"></div>
+              <p class="hint">If the button doesn't work, simply open the app manually.</p>
+          </div>
+
+          <!-- Error State -->
+          <div id="error" class="error" style="display:none;">
+              <div class="icon icon-error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#c62828" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="15" y1="9" x2="9" y2="15"></line>
+                      <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+              </div>
+              <h1>Verification Failed</h1>
+              <p id="errorMsg">The verification link is invalid or has expired. Please request a new verification email from the app.</p>
+          </div>
+      </div>
+
+      <script>
+          // Configuration - Site Audit Pro Appwrite Settings
+          const CONFIG = {
+              projectId: '69204c6200264a56bbe1',
+              endpoint: 'https://fra.cloud.appwrite.io/v1'
+          };
+
+          // Get URL parameters
+          const params = new URLSearchParams(window.location.search);
+          const userId = params.get('userId');
+          const secret = params.get('secret');
+
+          // DOM elements
+          const loadingEl = document.getElementById('loading');
+          const successEl = document.getElementById('success');
+          const errorEl = document.getElementById('error');
+          const errorMsgEl = document.getElementById('errorMsg');
+
+          // Show error state
+          function showError(message) {
+              loadingEl.style.display = 'none';
+              errorEl.style.display = 'block';
+              errorMsgEl.textContent = message;
+          }
+
+          // Show success state
+          function showSuccess() {
+              loadingEl.style.display = 'none';
+              successEl.style.display = 'block';
+          }
+
+          // Verify email with Appwrite
+          async function verifyEmail() {
+              // Validate parameters
+              if (!userId || !secret) {
+                  showError('Invalid verification link. The required parameters are missing.');
+                  return;
+              }
+
+              try {
+                  const response = await fetch(`${CONFIG.endpoint}/account/verification`, {
+                      method: 'PUT',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'X-Appwrite-Project': CONFIG.projectId
+                      },
+                      body: JSON.stringify({
+                          userId: userId,
+                          secret: secret
+                      })
+                  });
+
+                  if (response.ok) {
+                      showSuccess();
+                  } else {
+                      const data = await response.json();
+                      if (response.status === 401) {
+                          showError('This verification link has expired. Please request a new one from the app.');
+                      } else if (response.status === 404) {
+                          showError('Verification link not found. It may have already been used.');
+                      } else {
+                          showError(data.message || 'Verification failed. Please try again.');
+                      }
+                  }
+              } catch (err) {
+                  console.error('Verification error:', err);
+                  showError('Network error. Please check your internet connection and try again.');
+              }
+          }
+
+          // Start verification
+          verifyEmail();
+      </script>
+  </body>
+  </html>
